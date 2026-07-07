@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // Não use 'localhost' se estiver testando em um emulador/celular físico.
+  // endereço do serviço alocado no render
   final String baseUrl = 'https://gerenciamentodeestoque-uysv.onrender.com/api/busca';
 
   Future<List<dynamic>> enviarTexto(String texto) async {

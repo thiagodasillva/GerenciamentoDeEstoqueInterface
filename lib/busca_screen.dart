@@ -79,8 +79,6 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
   }
 
 
-
-
   // Envia o áudio do Celular (Arquivo físico)
   Future<void> _enviarAudioParaApi(String path) async {
     setState(() => _isLoading = true);

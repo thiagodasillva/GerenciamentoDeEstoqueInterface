@@ -15,7 +15,7 @@ class MeuApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: BuscaEstoqueScreen(), // Chama a tela que criamos
+      home: BuscaEstoqueScreen(), // Chama a tela
     );
   }
 }
