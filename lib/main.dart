@@ -12,10 +12,16 @@ class MeuApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Controle de Estoque',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.indigo,
+          brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: Colors.grey[50], // Fundo levemente cinza para destacar os cards
       ),
-      home: BuscaEstoqueScreen(), // Chama a tela
+      home: BuscaEstoqueScreen(),
     );
   }
 }
