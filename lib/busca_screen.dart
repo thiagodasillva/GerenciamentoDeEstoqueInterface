@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:record/record.dart';
+import 'package:record/record.dart'; // Corrigido o import do pacote
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
@@ -29,57 +29,64 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
   }
 
   Future<void> _buscarPorTexto() async {
-    if (_textController.text.isEmpty) return;
+    final texto = _textController.text.trim();
+    if (texto.isEmpty) return;
+    
+    _textController.clear();
     
     setState(() => _isLoading = true);
     try {
-      final resultados = await _apiService.enviarTexto(_textController.text);
+      final resultados = await _apiService.enviarTexto(texto);
       setState(() => _resultados = resultados);
     } catch (e) {
       _mostrarErro(e.toString());
-    } finally {
+    } finally { // Corrigido para finally
       setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _toggleRecording() async {
-    if (_isRecording) {
-      // Parar gravação
-      final path = await _audioRecorder.stop();
-      setState(() => _isRecording = false);
-      
-      if (path != null) {
+  Future<void> _iniciarGravacao() async {
+    if (await Permission.microphone.request().isGranted || kIsWeb) {
+      setState(() => _isRecording = true);
+      try {
         if (kIsWeb) {
-          // SE FOR NO CHROME: 'path' é um link temporário na memória. Precisamos baixar os bytes.
-          final response = await http.get(Uri.parse(path));
-          _enviarAudioParaApiWeb(response.bodyBytes);
+          // Removido o 'const' daqui
+          await _audioRecorder.start(RecordConfig(), path: '');
         } else {
-          // SE FOR NO CELULAR: 'path' é o endereço do arquivo físico.
-          _enviarAudioParaApi(path);
-        }
-      }
-    } else {
-      // Iniciar gravação
-      if (await Permission.microphone.request().isGranted || kIsWeb) {
-        if (kIsWeb) {
-          // CORREÇÃO AQUI: Passamos 'path: ''' porque o pacote exige o parâmetro,
-          // mas o Chrome vai ignorar o texto e gravar em formato Blob na memória.
-          await _audioRecorder.start(const RecordConfig(), path: '');
-        } else {
-          // No Celular, salvamos na pasta temporária normalmente
           final dir = await getTemporaryDirectory();
           final filePath = '${dir.path}/audio_busca.m4a';
-          await _audioRecorder.start(const RecordConfig(), path: filePath);
+          // Removido o 'const' daqui
+          await _audioRecorder.start(RecordConfig(), path: filePath);
         }
-        setState(() => _isRecording = true);
-      } else {
-        _mostrarErro("Permissão de microfone negada.");
+      } catch (e) {
+        _mostrarErro("Erro ao iniciar gravação: $e");
+        setState(() => _isRecording = false);
       }
+    } else {
+      _mostrarErro("Permissão de microfone negada.");
     }
   }
 
+  Future<void> _pararGravacao() async {
+    if (!_isRecording) return;
+    
+    setState(() => _isRecording = false);
+    try {
+      final path = await _audioRecorder.stop();
+      
+      if (path != null) {
+        if (kIsWeb) {
+          final response = await http.get(Uri.parse(path));
+          _enviarAudioParaApiWeb(response.bodyBytes);
+        } else {
+          _enviarAudioParaApi(path);
+        }
+      }
+    } catch (e) {
+      _mostrarErro("Erro ao finalizar gravação: $e");
+    }
+  }
 
-  // Envia o áudio do Celular (Arquivo físico)
   Future<void> _enviarAudioParaApi(String path) async {
     setState(() => _isLoading = true);
     try {
@@ -87,12 +94,11 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
       setState(() => _resultados = resultados);
     } catch (e) {
       _mostrarErro(e.toString());
-    } finally {
+    } finally { // Corrigido para finally
       setState(() => _isLoading = false);
     }
   }
 
-  // Envia o áudio do Chrome (Memória RAM)
   Future<void> _enviarAudioParaApiWeb(List<int> bytes) async {
     setState(() => _isLoading = true);
     try {
@@ -100,102 +106,93 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
       setState(() => _resultados = resultados);
     } catch (e) {
       _mostrarErro(e.toString());
-    } finally {
+    } finally { // Corrigido para finally
       setState(() => _isLoading = false);
     }
   }
 
-
-
-
-
-
-
-
-
-
-
-
-  // Future<void> _toggleRecording() async {
-  //   if (_isRecording) {
-  //     // Parar gravação e enviar
-  //     final path = await _audioRecorder.stop();
-  //     setState(() => _isRecording = false);
-      
-  //     if (path != null) {
-  //       _enviarAudioParaApi(path);
-  //     }
-  //   } else {
-  //     // Iniciar gravação
-  //     if (await Permission.microphone.request().isGranted) {
-  //       final dir = await getTemporaryDirectory();
-  //       final filePath = '${dir.path}/audio_busca.m4a'; // Whisper lida bem com diversos formatos
-        
-  //       await _audioRecorder.start(const RecordConfig(), path: filePath);
-  //       setState(() => _isRecording = true);
-  //     } else {
-  //       _mostrarErro("Permissão de microfone negada.");
-  //     }
-  //   }
-  // }
-
-  // Future<void> _enviarAudioParaApi(String path) async {
-  //   setState(() => _isLoading = true);
-  //   try {
-  //     final resultados = await _apiService.enviarAudio(path);
-  //     setState(() => _resultados = resultados);
-  //   } catch (e) {
-  //     _mostrarErro(e.toString());
-  //   } finally {
-  //     setState(() => _isLoading = false);
-  //   }
-  // }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   void _mostrarErro(String mensagem) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensagem)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensagem),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Assistente de Estoque')),
+      appBar: AppBar(
+        title: const Text(
+          'Assistente de Estoque', 
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: colorScheme.primaryContainer,
+        foregroundColor: colorScheme.onPrimaryContainer,
+        elevation: 0,
+      ),
       body: Column(
         children: [
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _resultados.isEmpty
-                    ? const Center(child: Text('Nenhum resultado. Faça uma busca.'))
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Nenhum resultado.\nFaça uma busca por texto ou segure o microfone.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      )
                     : ListView.builder(
                         itemCount: _resultados.length,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         itemBuilder: (context, index) {
                           final item = _resultados[index] as Map<String, dynamic>;
-                          // Como não sabemos as colunas do SQL com antecedência, 
-                          // renderizamos todas as chaves e valores retornados.
+                          
                           return Card(
-                            margin: const EdgeInsets.all(8.0),
+                            elevation: 1,
+                            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.grey.shade200),
+                            ),
                             child: Padding(
-                              padding: const EdgeInsets.all(12.0),
+                              padding: const EdgeInsets.all(16.0),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: item.entries.map((e) => Text(
-                                  '${e.key}: ${e.value}', 
-                                  style: const TextStyle(fontSize: 16),
+                                children: item.entries.map((e) => Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${e.key}: ', 
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold, 
+                                          color: colorScheme.primary,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          '${e.value}', 
+                                          style: const TextStyle(color: Colors.black87),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 )).toList(),
                               ),
                             ),
@@ -203,27 +200,68 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
                         },
                       ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
+          
+          Container(
+            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 24, top: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _textController,
-                    decoration: const InputDecoration(
+                    onSubmitted: (_) => _buscarPorTexto(),
+                    decoration: InputDecoration(
                       hintText: 'Pergunte algo sobre o estoque...',
-                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.send),
+                  color: colorScheme.primary,
                   onPressed: _buscarPorTexto,
                 ),
-                IconButton(
-                  icon: Icon(_isRecording ? Icons.stop : Icons.mic),
-                  color: _isRecording ? Colors.red : Colors.blue,
-                  onPressed: _toggleRecording,
+                const SizedBox(width: 4),
+                
+                GestureDetector(
+                  onLongPressStart: (_) => _iniciarGravacao(),
+                  onLongPressEnd: (_) => _pararGravacao(),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _isRecording ? Colors.redAccent : colorScheme.primary,
+                      shape: BoxShape.circle,
+                      boxShadow: _isRecording ? [
+                        BoxShadow(
+                          color: Colors.redAccent.withOpacity(0.4),
+                          blurRadius: 12,
+                          spreadRadius: 3,
+                        )
+                      ] : null,
+                    ),
+                    child: Icon(
+                      _isRecording ? Icons.mic : Icons.mic_none,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
                 ),
               ],
             ),
