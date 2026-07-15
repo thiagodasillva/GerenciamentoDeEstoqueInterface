@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:record/record.dart'; // Corrigido o import do pacote
+import 'package:flutter/services.dart'; // Fornece feedback sonoro e tátil nativo
+import 'package:record/record.dart'; 
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
@@ -22,10 +23,202 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
   List<dynamic> _resultados = [];
 
   @override
+  void initState() {
+    super.initState();
+    // Dispara o popup informativo assim que a primeira renderização do frame terminar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _mostrarPopupInformativo();
+    });
+  }
+
+  @override
   void dispose() {
     _textController.dispose();
     _audioRecorder.dispose();
     super.dispose();
+  }
+
+  Widget _buildItemInformativo(BuildContext context, IconData icon, String titulo, String descricao) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: colorScheme.primary.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: colorScheme.primary, size: 22),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                titulo,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                descricao,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _mostrarPopupInformativo() {
+    showDialog(
+      context: context,
+      barrierDismissible: true, // Permite fechar tocando fora do card
+      builder: (BuildContext context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return Center(
+          child: Dismissible(
+            key: const Key('info_popup_dismiss'),
+            direction: DismissDirection.horizontal, // Permite arrastar para esquerda ou direita para fechar
+            onDismissed: (direction) {
+              Navigator.of(context).pop();
+            },
+            child: Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              elevation: 12,
+              backgroundColor: Colors.white,
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 450),
+                padding: const EdgeInsets.all(24),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(height: 12),
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.warehouse_rounded,
+                                size: 40,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Center(
+                            child: Text(
+                              'Guia do Assistente',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          _buildItemInformativo(
+                            context,
+                            Icons.help_outline_rounded,
+                            'Para que serve?',
+                            'O sistema agiliza sua busca por mercadorias utilizando Inteligência Artificial por reconhecimento de voz e envio de texto.',
+                          ),
+                          const SizedBox(height: 20),
+                          
+                          _buildItemInformativo(
+                            context,
+                            Icons.admin_panel_settings_outlined,
+                            'Seu papel como Gestor',
+                            'Como gestor, você monitora em tempo real e valida a quantidade, relaciona os produtos com as vendas e acessa o status atualizado do inventário.',
+                          ),
+                          const SizedBox(height: 20),
+                          
+                          _buildItemInformativo(
+                            context,
+                            Icons.manage_search_rounded,
+                            'Tipos de busca disponíveis',
+                            '• Por nome do produto: "Quantas unidades do Notebook temos no estoque?"\n• Por número de vendas: "Qual o produto mais vendido?"\n• Por quantidade: "Quais itens estão abaixo de 10 unidades?"',
+                          ),
+                          const SizedBox(height: 32),
+                          
+                          const Center(
+                            child: Text(
+                              'Dica: deslize este card para fechar',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: colorScheme.primary,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                              ),
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text(
+                                'Entendido, vamos lá!',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Botão para fechar "X" localizado no canto superior direito
+                    Positioned(
+                      right: -12,
+                      top: -12,
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.grey[100],
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _buscarPorTexto() async {
@@ -40,22 +233,24 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
       setState(() => _resultados = resultados);
     } catch (e) {
       _mostrarErro(e.toString());
-    } finally { // Corrigido para finally
+    } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _iniciarGravacao() async {
     if (await Permission.microphone.request().isGranted || kIsWeb) {
+      // Toca um clique sonoro e gera uma vibração ao iniciar
+      await SystemSound.play(SystemSoundType.click);
+      await HapticFeedback.mediumImpact();
+
       setState(() => _isRecording = true);
       try {
         if (kIsWeb) {
-          // Removido o 'const' daqui
           await _audioRecorder.start(RecordConfig(), path: '');
         } else {
           final dir = await getTemporaryDirectory();
           final filePath = '${dir.path}/audio_busca.m4a';
-          // Removido o 'const' daqui
           await _audioRecorder.start(RecordConfig(), path: filePath);
         }
       } catch (e) {
@@ -69,6 +264,9 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
 
   Future<void> _pararGravacao() async {
     if (!_isRecording) return;
+    
+    // Pequena vibração tátil sutil ao soltar o dedo
+    await HapticFeedback.lightImpact();
     
     setState(() => _isRecording = false);
     try {
@@ -94,7 +292,7 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
       setState(() => _resultados = resultados);
     } catch (e) {
       _mostrarErro(e.toString());
-    } finally { // Corrigido para finally
+    } finally {
       setState(() => _isLoading = false);
     }
   }
@@ -106,7 +304,7 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
       setState(() => _resultados = resultados);
     } catch (e) {
       _mostrarErro(e.toString());
-    } finally { // Corrigido para finally
+    } finally {
       setState(() => _isLoading = false);
     }
   }
@@ -242,24 +440,29 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
                 GestureDetector(
                   onLongPressStart: (_) => _iniciarGravacao(),
                   onLongPressEnd: (_) => _pararGravacao(),
-                  child: AnimatedContainer(
+                  child: AnimatedScale(
+                    scale: _isRecording ? 1.25 : 1.0, // Amplia o botão de audio 25% enquanto pressionado
                     duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _isRecording ? Colors.redAccent : colorScheme.primary,
-                      shape: BoxShape.circle,
-                      boxShadow: _isRecording ? [
-                        BoxShadow(
-                          color: Colors.redAccent.withOpacity(0.4),
-                          blurRadius: 12,
-                          spreadRadius: 3,
-                        )
-                      ] : null,
-                    ),
-                    child: Icon(
-                      _isRecording ? Icons.mic : Icons.mic_none,
-                      color: Colors.white,
-                      size: 24,
+                    curve: Curves.easeOutBack, // Curva elástica estilizada
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _isRecording ? Colors.redAccent : colorScheme.primary,
+                        shape: BoxShape.circle,
+                        boxShadow: _isRecording ? [
+                          BoxShadow(
+                            color: Colors.redAccent.withOpacity(0.4),
+                            blurRadius: 12,
+                            spreadRadius: 3,
+                          )
+                        ] : null,
+                      ),
+                      child: Icon(
+                        _isRecording ? Icons.mic : Icons.mic_none,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                   ),
                 ),
