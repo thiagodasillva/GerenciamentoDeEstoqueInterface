@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Fornece feedback sonoro e tátil nativo
+import 'package:flutter/services.dart'; // Fornece feedback sonoro e tátil nativo no Android/iOS
 import 'package:record/record.dart'; 
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -7,7 +7,6 @@ import 'dart:io';
 import 'api_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
-import 'dart:js' as js;
 
 class BuscaEstoqueScreen extends StatefulWidget {
   @override
@@ -226,7 +225,7 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
     final texto = _textController.text.trim();
     if (texto.isEmpty) return;
     
-    _textController.clear();
+    _textController.clear(); // Limpa imediatamente o campo ao enviar
     
     setState(() => _isLoading = true);
     try {
@@ -239,53 +238,20 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
     }
   }
 
-
   void _reproduzirFeedbackSonoroInicio() {
-    if (kIsWeb) {
-      try {
-        // Gera um bipe sintetizado puro idêntico ao do WhatsApp diretamente na placa de som do navegador
-        js.context.callMethod('eval', [
-          '''
-          (function() {
-            var context = new (window.AudioContext || window.webkitAudioContext)();
-            var osc = context.createOscillator();
-            var gain = context.createGain();
-            
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(750, context.currentTime); // Pitch limpo de início
-            osc.connect(gain);
-            gain.connect(context.destination);
-            
-            gain.gain.setValueAtTime(0, context.currentTime);
-            // Curva suave de entrada e saída para não emitir estalo nos fones
-            gain.gain.linearRampToValueAtTime(0.08, context.currentTime + 0.04);
-            gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.22);
-            
-            osc.start(context.currentTime);
-            osc.stop(context.currentTime + 0.22);
-          })();
-          '''
-        ]);
-      } catch (e) {
-        debugPrint('Erro de inicialização do AudioContext Web: $e');
-      }
-    } else {
-      // Dispara o áudio e a vibração mecânica nativa no celular (Android/iOS)
+    if (!kIsWeb) {
+      // Dispara o som padrão de clique do sistema e uma vibração mecânica no celular (Android/iOS)
       SystemSound.play(SystemSoundType.click);
       HapticFeedback.mediumImpact();
     }
   }
 
-
-
-
-
   Future<void> _iniciarGravacao() async {
     if (await Permission.microphone.request().isGranted || kIsWeb) {
-
-      _reproduzirFeedbackSonoroInicio();
-      // Toca um clique sonoro e gera uma vibração ao iniciar
       
+      // Aciona o feedback sonoro/tátil de gravação iniciada
+      _reproduzirFeedbackSonoroInicio();
+
       setState(() => _isRecording = true);
       try {
         if (kIsWeb) {
@@ -304,14 +270,13 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
     }
   }
 
-
-
-
   Future<void> _pararGravacao() async {
     if (!_isRecording) return;
     
-    // Pequena vibração tátil sutil ao soltar o dedo
-    await HapticFeedback.lightImpact();
+    // Pequena vibração tátil sutil ao soltar o dedo no celular
+    if (!kIsWeb) {
+      await HapticFeedback.lightImpact();
+    }
     
     setState(() => _isRecording = false);
     try {
@@ -486,7 +451,7 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
                   onLongPressStart: (_) => _iniciarGravacao(),
                   onLongPressEnd: (_) => _pararGravacao(),
                   child: AnimatedScale(
-                    scale: _isRecording ? 1.5 : 1.0, // Amplia o botão de audio 25% enquanto pressionado
+                    scale: _isRecording ? 1.5 : 1.0, // Amplia 25% enquanto pressionado
                     duration: const Duration(milliseconds: 150),
                     curve: Curves.easeOutBack, // Curva elástica estilizada
                     child: AnimatedContainer(
