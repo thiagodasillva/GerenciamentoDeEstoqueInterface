@@ -36,13 +36,12 @@ class ApiService {
   }
 
 
-  // Nova função exclusiva para enviar o áudio quando estiver no Chrome (Web)
+  // Nova função para enviar o áudio quando estiver no Chrome
   Future<List<dynamic>> enviarAudioWeb(List<int> bytes) async {
     var uri = Uri.parse('$baseUrl/perguntar/audio');
     var request = http.MultipartRequest('POST', uri);
     
     // Anexa os bytes da memória diretamente na requisição
-    // O Chrome grava nativamente em .webm, o que seu Python (Whisper) já está esperando!
     request.files.add(http.MultipartFile.fromBytes(
       'audio', 
       bytes,
