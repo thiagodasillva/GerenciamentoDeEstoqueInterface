@@ -7,6 +7,7 @@ import 'dart:io';
 import 'api_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
+import 'dart:js' as js;
 
 class BuscaEstoqueScreen extends StatefulWidget {
   @override
@@ -238,12 +239,53 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
     }
   }
 
+
+  void _reproduzirFeedbackSonoroInicio() {
+    if (kIsWeb) {
+      try {
+        // Gera um bipe sintetizado puro idêntico ao do WhatsApp diretamente na placa de som do navegador
+        js.context.callMethod('eval', [
+          '''
+          (function() {
+            var context = new (window.AudioContext || window.webkitAudioContext)();
+            var osc = context.createOscillator();
+            var gain = context.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(750, context.currentTime); // Pitch limpo de início
+            osc.connect(gain);
+            gain.connect(context.destination);
+            
+            gain.gain.setValueAtTime(0, context.currentTime);
+            // Curva suave de entrada e saída para não emitir estalo nos fones
+            gain.gain.linearRampToValueAtTime(0.08, context.currentTime + 0.04);
+            gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.22);
+            
+            osc.start(context.currentTime);
+            osc.stop(context.currentTime + 0.22);
+          })();
+          '''
+        ]);
+      } catch (e) {
+        debugPrint('Erro de inicialização do AudioContext Web: $e');
+      }
+    } else {
+      // Dispara o áudio e a vibração mecânica nativa no celular (Android/iOS)
+      SystemSound.play(SystemSoundType.click);
+      HapticFeedback.mediumImpact();
+    }
+  }
+
+
+
+
+
   Future<void> _iniciarGravacao() async {
     if (await Permission.microphone.request().isGranted || kIsWeb) {
-      // Toca um clique sonoro e gera uma vibração ao iniciar
-      await SystemSound.play(SystemSoundType.click);
-      await HapticFeedback.mediumImpact();
 
+      _reproduzirFeedbackSonoroInicio();
+      // Toca um clique sonoro e gera uma vibração ao iniciar
+      
       setState(() => _isRecording = true);
       try {
         if (kIsWeb) {
@@ -261,6 +303,9 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
       _mostrarErro("Permissão de microfone negada.");
     }
   }
+
+
+
 
   Future<void> _pararGravacao() async {
     if (!_isRecording) return;
@@ -441,7 +486,7 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
                   onLongPressStart: (_) => _iniciarGravacao(),
                   onLongPressEnd: (_) => _pararGravacao(),
                   child: AnimatedScale(
-                    scale: _isRecording ? 1.25 : 1.0, // Amplia o botão de audio 25% enquanto pressionado
+                    scale: _isRecording ? 1.5 : 1.0, // Amplia o botão de audio 25% enquanto pressionado
                     duration: const Duration(milliseconds: 150),
                     curve: Curves.easeOutBack, // Curva elástica estilizada
                     child: AnimatedContainer(
