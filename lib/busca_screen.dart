@@ -274,6 +274,7 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
                           ),
                           const SizedBox(height: 20),
 
+
                           _buildItemInformativo(
                             context,
                             Icons.manage_search_rounded,
@@ -281,6 +282,16 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
                             '• Por nome do produto: "Quantas unidades do Notebook temos no estoque?"\n• Por número de vendas: "Qual o produto mais vendido?"\n• Por quantidade: "Quais itens estão abaixo de 10 unidades?"',
                           ),
                           const SizedBox(height: 32),
+
+
+                          _buildItemInformativo(
+                            context,
+                            Icons.tune_rounded,
+                            'Buscas predefinidas',
+                            '• Como gestor você tambem pode definir pesquisar para serem buscadas automativamente e aumentar a gilidade do uso do sistema, asta clicar em "add Pesquisa" e salvar a pesquisa que quiser',
+                          ),
+                          const SizedBox(height: 32),
+
 
                           const Center(
                             child: Text(
@@ -532,7 +543,6 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
                                     _buscarPorTexto();
                                   },
                                   onLongPress: () {
-                                    // Detecta que o usuário segurou o botão e abre a função de deletar
                                     _mostrarDialogDeletarPesquisa(search);
                                   },
                                   child: Container(
