@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Fornece feedback sonoro e tátil nativo
+import 'package:flutter/services.dart'; 
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-// import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
@@ -23,11 +23,12 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
   bool _isRecording = false;
   bool _isLoading = false;
   List<dynamic> _resultados = [];
+  List<String> _pesquisasPredefinidas = [];
 
   @override
   void initState() {
     super.initState();
-    // Dispara o popup informativo assim que a primeira renderização do frame terminar
+    _carregarPesquisasPredefinidas();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _mostrarPopupInformativo();
     });
@@ -38,6 +39,118 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
     _textController.dispose();
     _audioRecorder.dispose();
     super.dispose();
+  }
+
+  Future<void> _carregarPesquisasPredefinidas() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _pesquisasPredefinidas = prefs.getStringList('pesquisas_rapidas') ?? [];
+    });
+  }
+
+  Future<void> _salvarPesquisasPredefinidas() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('pesquisas_rapidas', _pesquisasPredefinidas);
+  }
+
+  void _adicionarPesquisaPredefinida(String texto) {
+    if (texto.isEmpty) return;
+
+    // Validação extra de segurança para os 50 caracteres
+    if (texto.length > 50) {
+      _mostrarErro('A pesquisa não pode ter mais de 50 caracteres.');
+      return;
+    }
+
+    if (_pesquisasPredefinidas.length >= 5) {
+      _mostrarErro('Você já atingiu o limite de 5 pesquisas predefinidas.');
+      return;
+    }
+
+    setState(() {
+      _pesquisasPredefinidas.add(texto);
+    });
+    _salvarPesquisasPredefinidas();
+  }
+
+  void _removerPesquisaPredefinida(String texto) {
+    setState(() {
+      _pesquisasPredefinidas.remove(texto);
+    });
+    _salvarPesquisasPredefinidas();
+  }
+
+  // Janela pop-up acionada ao SEGURAR o botão por alguns instantes
+  void _mostrarDialogDeletarPesquisa(String texto) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.delete_outline, color: Colors.redAccent),
+              SizedBox(width: 8),
+              Text('Apagar Pesquisa'),
+            ],
+          ),
+          content: Text('Deseja remover a pesquisa rápida abaixo?\n\n"$texto"'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                _removerPesquisaPredefinida(texto);
+                Navigator.pop(context);
+              },
+              child: const Text('Apagar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _mostrarDialogAdicionarPesquisa() {
+    final TextEditingController _dialogController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Nova Pesquisa Predefinida'),
+          content: TextField(
+            controller: _dialogController,
+            autofocus: true,
+            maxLength: 50, // Limitador nativo do teclado Android (Exibe o contador 0/50)
+            decoration: const InputDecoration(
+              hintText: 'Ex: Qual o produto mais vendido?',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _adicionarPesquisaPredefinida(_dialogController.text.trim());
+                Navigator.pop(context);
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildItemInformativo(
@@ -90,14 +203,13 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
   void _mostrarPopupInformativo() {
     showDialog(
       context: context,
-      barrierDismissible: true, // Permite fechar tocando fora do card
+      barrierDismissible: true,
       builder: (BuildContext context) {
         final colorScheme = Theme.of(context).colorScheme;
         return Center(
           child: Dismissible(
             key: const Key('info_popup_dismiss'),
-            direction: DismissDirection
-                .horizontal, // Permite arrastar para esquerda ou direita para fechar
+            direction: DismissDirection.horizontal,
             onDismissed: (direction) {
               Navigator.of(context).pop();
             },
@@ -208,7 +320,6 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
                       ),
                     ),
 
-                    // Botão para fechar "X" localizado no canto superior direito
                     Positioned(
                       right: -12,
                       top: -12,
@@ -256,13 +367,11 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
   void _reproduzirFeedbackSonoroInicio() {
     if (kIsWeb) {
       try {
-        // Gera um bipe sintetizado puro idêntico ao do WhatsApp diretamente na placa de som do navegador
         playWebAudioFeedback();
       } catch (e) {
         debugPrint('Erro de inicialização do AudioContext Web: $e');
       }
     } else {
-      // Dispara o áudio e a vibração mecânica nativa no celular (Android/iOS)
       SystemSound.play(SystemSoundType.click);
       HapticFeedback.mediumImpact();
     }
@@ -271,7 +380,6 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
   Future<void> _iniciarGravacao() async {
     if (await Permission.microphone.request().isGranted || kIsWeb) {
       _reproduzirFeedbackSonoroInicio();
-      // Toca um clique sonoro e gera uma vibração ao iniciar
 
       setState(() => _isRecording = true);
       try {
@@ -294,7 +402,6 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
   Future<void> _pararGravacao() async {
     if (!_isRecording) return;
 
-    // Pequena vibração tátil sutil ao soltar o dedo
     await HapticFeedback.lightImpact();
 
     setState(() => _isRecording = false);
@@ -362,6 +469,19 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
         backgroundColor: colorScheme.primaryContainer,
         foregroundColor: colorScheme.onPrimaryContainer,
         elevation: 0,
+        actions: _resultados.isNotEmpty
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded),
+                  tooltip: 'Voltar ao Início',
+                  onPressed: () {
+                    setState(() {
+                      _resultados = [];
+                    });
+                  },
+                )
+              ]
+            : null,
       ),
       body: Column(
         children: [
@@ -370,24 +490,96 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _resultados.isEmpty
                 ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.inventory_2_outlined,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Nenhum resultado.\nFaça uma busca por texto ou segure o microfone.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 16,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 64,
+                            color: Colors.grey[400],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          Text(
+                            'Nenhum resultado ainda.\nFaça uma busca ou use um atalho rápido abaixo:',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            '(Segure um atalho para apagá-lo)',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 10, 
+                            runSpacing: 10, 
+                            children: [
+                              ..._pesquisasPredefinidas.map((search) {
+                                return GestureDetector(
+                                  onTap: () {
+                                    _textController.text = search;
+                                    _buscarPorTexto();
+                                  },
+                                  onLongPress: () {
+                                    // Detecta que o usuário segurou o botão e abre a função de deletar
+                                    _mostrarDialogDeletarPesquisa(search);
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primary.withOpacity(0.06),
+                                      borderRadius: BorderRadius.circular(30),
+                                      border: Border.all(
+                                        color: colorScheme.primary.withOpacity(0.3),
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 18, 
+                                      vertical: 12
+                                    ),
+                                    child: Text(
+                                      search,
+                                      style: TextStyle(
+                                        color: colorScheme.primary,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+
+                              if (_pesquisasPredefinidas.length < 5)
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    shape: const StadiumBorder(),
+                                    side: BorderSide(color: colorScheme.primary, width: 1.5),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 18,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  onPressed: _mostrarDialogAdicionarPesquisa,
+                                  icon: const Icon(Icons.add, size: 18),
+                                  label: const Text(
+                                    'add Pesquisa',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 : ListView.builder(
@@ -497,11 +689,9 @@ class _BuscaEstoqueScreenState extends State<BuscaEstoqueScreen> {
                   onLongPressStart: (_) => _iniciarGravacao(),
                   onLongPressEnd: (_) => _pararGravacao(),
                   child: AnimatedScale(
-                    scale: _isRecording
-                        ? 1.5
-                        : 1.0, // Amplia o botão de audio 25% enquanto pressionado
+                    scale: _isRecording ? 1.5 : 1.0,
                     duration: const Duration(milliseconds: 150),
-                    curve: Curves.easeOutBack, // Curva elástica estilizada
+                    curve: Curves.easeOutBack,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.all(12),
