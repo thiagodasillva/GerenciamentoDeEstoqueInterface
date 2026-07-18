@@ -1,3 +1,4 @@
+// lib/dashboard_screen.dart
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 import 'busca_screen.dart';
@@ -28,41 +29,83 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ];
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       body: IndexedStack(
         index: _currentIndex,
         children: _paginas,
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => BuscaEstoqueScreen()),
-          );
-        },
-        backgroundColor: Colors.blueAccent,
-        icon: const Icon(Icons.psychology, size: 28, color: Colors.white),
-        label: const Text("Pesquisa IA", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      // Barra de navegação inferior flutuante idêntica ao design enviado
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(35),
+              border: Border.all(color: Colors.grey.shade200, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(0, Icons.home_outlined, 'HOME'),
+                _buildNavItem(1, Icons.inventory_2_outlined, 'PRODUTOS'),
+                _buildNavItem(2, Icons.history_outlined, 'HIST.'),
+                _buildNavItem(3, Icons.assignment_outlined, 'CONTAR'),
+                _buildNavItem(4, Icons.menu, 'MENU'),
+              ],
+            ),
+          ),
+        ),
       ),
-      // Posicionado no canto inferior direito para não sobrepor o menu de 5 botões
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _mudarAba,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.inventory_2), label: 'Produtos'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Histórico'),
-          BottomNavigationBarItem(icon: Icon(Icons.monetization_on), label: 'Contar'),
-          BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'Menu'),
-        ],
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, String label) {
+    bool isSelected = _currentIndex == index;
+    return GestureDetector(
+      onTap: () => _mudarAba(index),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: isSelected
+            ? BoxDecoration(
+                color: const Color(0xFFE6F7ED), 
+                borderRadius: BorderRadius.circular(20),
+              )
+            : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? const Color(0xFF00A859) : Colors.grey.shade600,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? const Color(0xFF00A859) : Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+// --- PAINEL PRINCIPAL COM A ESTÉTICA DA IMAGEM E DADOS DO BANCO ---
 class DashboardPainel extends StatelessWidget {
   final Function(int) onNavigate;
   final ApiService apiService;
@@ -72,70 +115,165 @@ class DashboardPainel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard de Estoque', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: Colors.blue.shade50,
-      ),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: apiService.obterDadosDashboard(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final dados = snapshot.data ?? {};
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: SafeArea(
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: apiService.obterDadosDashboard(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final dados = snapshot.data ?? {};
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              children: [
-                _buildDashboardCard(
-                  title: "Produtos",
-                  value: "${dados['total_produtos'] ?? 0} itens",
-                  icon: Icons.inventory_2,
-                  color: Colors.blue.shade400,
-                  onTap: () => onNavigate(1),
-                ),
-                _buildDashboardCard(
-                  title: "Valor Total",
-                  value: "R\$ ${(dados['valor_vendas_mes'] as num?)?.toStringAsFixed(2) ?? '0.00'}",
-                  icon: Icons.attach_money,
-                  color: Colors.green.shade400,
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (context) => UltimasMovimentacoesPage(apiService: apiService)
-                    ));
-                  },
-                ),
-                _buildDashboardCard(
-                  title: "Baixo Estoque",
-                  value: "${dados['baixo_estoque_count'] ?? 0} alertas",
-                  icon: Icons.warning_amber_rounded,
-                  color: Colors.orange.shade400,
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (context) => BaixoEstoquePage(apiService: apiService)
-                    ));
-                  },
-                ),
-                _buildDashboardCard(
-                  title: "Movimentações",
-                  value: "${dados['movimentacoes_count'] ?? 0} ações",
-                  icon: Icons.swap_horiz,
-                  color: Colors.purple.shade400,
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (context) => MovimentacoesTempoPage(apiService: apiService)
-                    ));
-                  },
-                ),
-              ],
-            ),
-          );
-        },
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Cabeçalho da Imagem
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Bom dia",
+                            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "Resumo rápido do estoque de hoje",
+                            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: IconButton(
+                              icon: Icon(Icons.settings_outlined, color: Colors.grey.shade700, size: 22),
+                              onPressed: () {},
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const CircleAvatar(
+                            radius: 20,
+                            backgroundColor: Color(0xFFE6F7ED),
+                            child: Text("A", style: TextStyle(color: Color(0xFF00A859), fontWeight: FontWeight.bold, fontSize: 16)),
+                          )
+                        ],
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Grid de 4 Blocos mantendo os dados e ações funcionais anteriores
+                  GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: 1.1,
+                    children: [
+                      _buildDashboardCard(
+                        title: "Produtos",
+                        value: "${dados['total_produtos'] ?? 0} itens",
+                        icon: Icons.layers_outlined,
+                        iconColor: const Color(0xFF00A859),
+                        iconBgColor: const Color(0xFFE6F7ED),
+                        textColor: const Color(0xFF00A859),
+                        onTap: () => onNavigate(1),
+                      ),
+                      _buildDashboardCard(
+                        title: "Valor Total",
+                        value: "R\$ ${(dados['valor_vendas_mes'] as num?)?.toStringAsFixed(2) ?? '0.00'}",
+                        icon: Icons.account_balance_wallet_outlined,
+                        iconColor: const Color(0xFF7C3AED),
+                        iconBgColor: const Color(0xFFF3E8FF),
+                        textColor: const Color(0xFF7C3AED),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (context) => UltimasMovimentacoesPage(apiService: apiService)
+                          ));
+                        },
+                      ),
+                      _buildDashboardCard(
+                        title: "Baixo estoque",
+                        value: "${dados['baixo_estoque_count'] ?? 0} alertas",
+                        icon: Icons.warning_amber_rounded,
+                        iconColor: const Color(0xFFD97706),
+                        iconBgColor: const Color(0xFFFEF3C7),
+                        textColor: const Color(0xFFD97706),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (context) => BaixoEstoquePage(apiService: apiService)
+                          ));
+                        },
+                      ),
+                      _buildDashboardCard(
+                        title: "Movimentações",
+                        value: "${dados['movimentacoes_count'] ?? 0} ações",
+                        icon: Icons.swap_horiz_rounded,
+                        iconColor: const Color(0xFF2563EB),
+                        iconBgColor: const Color(0xFFDBEAFE),
+                        textColor: const Color(0xFF2563EB),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (context) => MovimentacoesTempoPage(apiService: apiService)
+                          ));
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Card de gatilho para a Pesquisa por Inteligência Artificial
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => BuscaEstoqueScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: const Color(0xFF1E3A8A).withOpacity(0.4), width: 1.2),
+                      ),
+                      child: Row(
+                        children: [
+                          _buildRobotIcon(),
+                          const SizedBox(width: 20),
+                          const Expanded(
+                            child: Text(
+                              "Tem dúvidas sobre as mercadorias?\nClique aqui e me pergunte.",
+                              style: TextStyle(
+                                fontSize: 16, 
+                                fontWeight: FontWeight.w500, 
+                                color: Color(0xFF1E293B),
+                                height: 1.4,
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -144,34 +282,105 @@ class DashboardPainel extends StatelessWidget {
     required String title,
     required String value,
     required IconData icon,
-    required Color color,
+    required Color iconColor,
+    required Color iconBgColor,
+    required Color textColor,
     required VoidCallback onTap,
   }) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.white,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: Colors.grey.shade100, width: 1.5),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(14.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 36, color: color),
-              const SizedBox(height: 8),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), textAlign: TextAlign.center),
-              const SizedBox(height: 4),
-              Text(value, style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title, 
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.grey.shade400)
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(color: iconBgColor, borderRadius: BorderRadius.circular(10)),
+                    child: Icon(icon, size: 18, color: iconColor),
+                  )
+                ],
+              ),
+              const Spacer(),
+              Center(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16, height: 1.3),
+                ),
+              ),
+              const Spacer(),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _buildRobotIcon() {
+    return Container(
+      width: 70,
+      height: 70,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            top: 2,
+            child: Container(width: 3, height: 10, color: const Color(0xFF1E3A8A)),
+          ),
+          Positioned(
+            top: 0,
+            child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF1E3A8A), shape: BoxShape.circle)),
+          ),
+          Positioned(
+            bottom: 8,
+            child: Container(
+              width: 54,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF1E3A8A), width: 2.5),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF1E3A8A), shape: BoxShape.circle)),
+                  Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF1E3A8A), shape: BoxShape.circle)),
+                ],
+              ),
+            ),
+          ),
+          Positioned(left: 2, child: Container(width: 5, height: 10, decoration: BoxDecoration(color: const Color(0xFF1E3A8A), borderRadius: BorderRadius.circular(2)))),
+          Positioned(right: 2, child: Container(width: 5, height: 10, decoration: BoxDecoration(color: const Color(0xFF1E3A8A), borderRadius: BorderRadius.circular(2)))),
+          Positioned(
+            top: 6,
+            right: 0,
+            child: Icon(Icons.chat_bubble_outline_rounded, size: 22, color: const Color(0xFF1E3A8A).withOpacity(0.8)),
+          )
+        ],
+      ),
+    );
+  }
 }
 
-// --- SUBPÁGINAS DO APP ---
+// --- SUBPÁGINAS ATIVADAS COM OS DADOS REAIS DO BACKEND ---
 
 class ProdutosPage extends StatelessWidget {
   final ApiService apiService;
@@ -180,19 +389,24 @@ class ProdutosPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Lista de Produtos")),
+      backgroundColor: Colors.white,
+      appBar: AppBar(title: const Text("Lista de Produtos"), backgroundColor: Colors.white, elevation: 0),
       body: FutureBuilder<List<dynamic>>(
         future: apiService.obterProdutos(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final produtos = snapshot.data!;
-          if (produtos.isEmpty) return const Center(child: Text("Nenhum produto cadastrado"));
           return ListView.builder(
             itemCount: produtos.length,
-            itemBuilder: (context, i) => ListTile(
-              leading: const Icon(Icons.shopping_bag, color: Colors.blue),
-              title: Text(produtos[i]['nome'] ?? 'Sem nome'),
-              subtitle: Text("Qtd: ${produtos[i]['quantidade'] ?? 0} | Preço: R\$ ${(produtos[i]['preco'] as num?)?.toStringAsFixed(2) ?? '0.00'}"),
+            padding: const EdgeInsets.all(16),
+            itemBuilder: (context, i) => Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: ListTile(
+                leading: const Icon(Icons.shopping_bag, color: Color(0xFF00A859)),
+                title: Text(produtos[i]['nome'] ?? 'Sem nome', style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text("Disponível: ${produtos[i]['quantidade'] ?? 0} un"),
+                trailing: Text("R\$ ${(produtos[i]['preco'] as num?)?.toStringAsFixed(2) ?? '0.00'}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+              ),
             ),
           );
         },
@@ -208,19 +422,21 @@ class UltimasMovimentacoesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Últimas Movimentações")),
+      backgroundColor: Colors.white,
+      appBar: AppBar(title: const Text("Últimas Movimentações"), backgroundColor: Colors.white, elevation: 0),
       body: FutureBuilder<List<dynamic>>(
         future: apiService.obterUltimasMovimentacoes(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final lista = snapshot.data!;
-          if (lista.isEmpty) return const Center(child: Text("Nenhuma movimentação recente"));
           return ListView.builder(
             itemCount: lista.length,
+            padding: const EdgeInsets.all(16),
             itemBuilder: (context, i) => ListTile(
-              leading: const Icon(Icons.history_toggle_off, color: Colors.green),
-              title: Text("Operação: ${lista[i]['tipo'] ?? ''}"),
-              subtitle: Text("Produto: ${lista[i]['produto']} | Quantidade: ${lista[i]['quantidade']}"),
+              leading: const Icon(Icons.history_toggle_off, color: Color(0xFF7C3AED)),
+              title: Text("Operação: ${lista[i]['tipo'] ?? ''}", style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text("Produto: ${lista[i]['produto']}"),
+              trailing: Text("${lista[i]['quantidade']} un", style: const TextStyle(color: Colors.grey)),
             ),
           );
         },
@@ -236,19 +452,20 @@ class BaixoEstoquePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Produtos Alerta de Estoque"), backgroundColor: Colors.orange.shade100),
+      backgroundColor: Colors.white,
+      appBar: AppBar(title: const Text("Produtos Críticos"), backgroundColor: Colors.white, elevation: 0),
       body: FutureBuilder<List<dynamic>>(
         future: apiService.obterProdutosBaixoEstoque(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final lista = snapshot.data!;
-          if (lista.isEmpty) return const Center(child: Text("Todos os produtos com estoque saudável!"));
           return ListView.builder(
             itemCount: lista.length,
+            padding: const EdgeInsets.all(16),
             itemBuilder: (context, i) => ListTile(
-              leading: const Icon(Icons.warning, color: Colors.orange),
-              title: Text(lista[i]['nome'] ?? ''),
-              subtitle: Text("Quantidade Crítica: ${lista[i]['quantidade']} restantes"),
+              leading: const Icon(Icons.warning_rounded, color: Color(0xFFD97706)),
+              title: Text(lista[i]['nome'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text("Alerta: Apenas ${lista[i]['quantidade']} unidades em estoque."),
             ),
           );
         },
@@ -264,19 +481,20 @@ class MovimentacoesTempoPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Movimentações e Duração")),
+      backgroundColor: Colors.white,
+      appBar: AppBar(title: const Text("Duração das Ações"), backgroundColor: Colors.white, elevation: 0),
       body: FutureBuilder<List<dynamic>>(
         future: apiService.obterMovimentacoesComTempo(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final lista = snapshot.data!;
-          if (lista.isEmpty) return const Center(child: Text("Sem registros de tempo"));
           return ListView.builder(
             itemCount: lista.length,
+            padding: const EdgeInsets.all(16),
             itemBuilder: (context, i) => ListTile(
-              leading: const Icon(Icons.timer, color: Colors.purple),
+              leading: const Icon(Icons.timer_outlined, color: Color(0xFF2563EB)),
               title: Text("${lista[i]['descricao'] ?? ''}"),
-              trailing: Text("${lista[i]['tempo_duracao'] ?? '0'} min", style: const TextStyle(fontWeight: FontWeight.bold)),
+              trailing: Text("${lista[i]['tempo_duracao'] ?? '0'} min", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
             ),
           );
         },
@@ -289,17 +507,17 @@ class HistoricoMovimentacoesPage extends StatelessWidget {
   final ApiService apiService;
   const HistoricoMovimentacoesPage({required this.apiService});
   @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Histórico Geral")), body: const Center(child: Text("Página de Histórico de Movimentações Completo")));
+  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text("Aba de Histórico Geral")));
 }
 
 class ContarVendasPage extends StatelessWidget {
   final ApiService apiService;
   const ContarVendasPage({required this.apiService});
   @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Faturamento Total")), body: const Center(child: Text("Painel do Valor Total de Vendas Acumuladas")));
+  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text("Aba de Contagem Financeira")));
 }
 
 class MenuOpcoesPage extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Menu Administrativo")), body: const Center(child: Text("Outros Assuntos e Configurações")));
+  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text("Aba de Menus Administrativos")));
 }
