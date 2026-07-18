@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'busca_screen.dart';
+import 'dashboard_screen.dart';
 
 void main() {
   runApp(const MeuApp());
@@ -12,10 +13,12 @@ class MeuApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Controle de Estoque',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
       ),
-      home: BuscaEstoqueScreen(), // Chama a tela
+      home: MainNavigationScreen(),
     );
   }
 }
