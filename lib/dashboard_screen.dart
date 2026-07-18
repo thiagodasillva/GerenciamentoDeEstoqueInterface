@@ -4,6 +4,8 @@ import 'api_service.dart';
 import 'busca_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
+  const MainNavigationScreen({Key? key}) : super(key: key);
+
   @override
   _MainNavigationScreenState createState() => _MainNavigationScreenState();
 }
@@ -34,7 +36,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         index: _currentIndex,
         children: _paginas,
       ),
-      // Barra de navegação inferior flutuante idêntica ao design enviado
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0),
@@ -105,12 +106,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 }
 
-// --- PAINEL PRINCIPAL COM A ESTÉTICA DA IMAGEM E DADOS DO BANCO ---
 class DashboardPainel extends StatelessWidget {
   final Function(int) onNavigate;
   final ApiService apiService;
 
-  const DashboardPainel({required this.onNavigate, required this.apiService});
+  const DashboardPainel({Key? key, required this.onNavigate, required this.apiService}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -120,9 +120,7 @@ class DashboardPainel extends StatelessWidget {
         child: FutureBuilder<Map<String, dynamic>>(
           future: apiService.obterDadosDashboard(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+            final bool isLoading = snapshot.connectionState == ConnectionState.waiting;
             final dados = snapshot.data ?? {};
 
             return SingleChildScrollView(
@@ -130,7 +128,6 @@ class DashboardPainel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Cabeçalho da Imagem
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -172,7 +169,6 @@ class DashboardPainel extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // Grid de 4 Blocos mantendo os dados e ações funcionais anteriores
                   GridView.count(
                     crossAxisCount: 2,
                     crossAxisSpacing: 14,
@@ -183,7 +179,8 @@ class DashboardPainel extends StatelessWidget {
                     children: [
                       _buildDashboardCard(
                         title: "Produtos",
-                        value: "${dados['total_produtos'] ?? 0} itens",
+                        value: isLoading ? "Carregando..." : "${dados['total_produtos'] ?? 0} itens",
+                        isLoading: isLoading,
                         icon: Icons.layers_outlined,
                         iconColor: const Color(0xFF00A859),
                         iconBgColor: const Color(0xFFE6F7ED),
@@ -192,48 +189,56 @@ class DashboardPainel extends StatelessWidget {
                       ),
                       _buildDashboardCard(
                         title: "Valor Total",
-                        value: "R\$ ${(dados['valor_vendas_mes'] as num?)?.toStringAsFixed(2) ?? '0.00'}",
+                        value: isLoading ? "Carregando..." : "R\$ ${(dados['valor_vendas_mes'] as num?)?.toStringAsFixed(2) ?? '0.00'}",
+                        isLoading: isLoading,
                         icon: Icons.account_balance_wallet_outlined,
                         iconColor: const Color(0xFF7C3AED),
                         iconBgColor: const Color(0xFFF3E8FF),
                         textColor: const Color(0xFF7C3AED),
                         onTap: () {
-                          Navigator.push(context, MaterialPageRoute(
-                            builder: (context) => UltimasMovimentacoesPage(apiService: apiService)
-                          ));
+                          if (!isLoading) {
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (context) => UltimasMovimentacoesPage(apiService: apiService)
+                            ));
+                          }
                         },
                       ),
                       _buildDashboardCard(
                         title: "Baixo estoque",
-                        value: "${dados['baixo_estoque_count'] ?? 0} alertas",
+                        value: isLoading ? "Carregando..." : "${dados['baixo_estoque_count'] ?? 0} alertas",
+                        isLoading: isLoading,
                         icon: Icons.warning_amber_rounded,
                         iconColor: const Color(0xFFD97706),
                         iconBgColor: const Color(0xFFFEF3C7),
                         textColor: const Color(0xFFD97706),
                         onTap: () {
-                          Navigator.push(context, MaterialPageRoute(
-                            builder: (context) => BaixoEstoquePage(apiService: apiService)
-                          ));
+                          if (!isLoading) {
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (context) => BaixoEstoquePage(apiService: apiService)
+                            ));
+                          }
                         },
                       ),
                       _buildDashboardCard(
                         title: "Movimentações",
-                        value: "${dados['movimentacoes_count'] ?? 0} ações",
+                        value: isLoading ? "Carregando..." : "${dados['movimentacoes_count'] ?? 0} ações",
+                        isLoading: isLoading,
                         icon: Icons.swap_horiz_rounded,
                         iconColor: const Color(0xFF2563EB),
                         iconBgColor: const Color(0xFFDBEAFE),
                         textColor: const Color(0xFF2563EB),
                         onTap: () {
-                          Navigator.push(context, MaterialPageRoute(
-                            builder: (context) => MovimentacoesTempoPage(apiService: apiService)
-                          ));
+                          if (!isLoading) {
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (context) => MovimentacoesTempoPage(apiService: apiService)
+                            ));
+                          }
                         },
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
 
-                  // Card de gatilho para a Pesquisa por Inteligência Artificial
                   InkWell(
                     onTap: () {
                       Navigator.push(
@@ -281,6 +286,7 @@ class DashboardPainel extends StatelessWidget {
   Widget _buildDashboardCard({
     required String title,
     required String value,
+    required bool isLoading,
     required IconData icon,
     required Color iconColor,
     required Color iconBgColor,
@@ -322,7 +328,13 @@ class DashboardPainel extends StatelessWidget {
                 child: Text(
                   value,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16, height: 1.3),
+                  style: TextStyle(
+                    color: isLoading ? Colors.grey.shade400 : textColor, 
+                    fontWeight: FontWeight.bold, 
+                    fontSize: isLoading ? 14 : 16,
+                    fontStyle: isLoading ? FontStyle.italic : FontStyle.normal,
+                    height: 1.3,
+                  ),
                 ),
               ),
               const Spacer(),
@@ -380,11 +392,9 @@ class DashboardPainel extends StatelessWidget {
   }
 }
 
-// --- SUBPÁGINAS ATIVADAS COM OS DADOS REAIS DO BACKEND ---
-
 class ProdutosPage extends StatelessWidget {
   final ApiService apiService;
-  const ProdutosPage({required this.apiService});
+  const ProdutosPage({Key? key, required this.apiService}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -417,7 +427,7 @@ class ProdutosPage extends StatelessWidget {
 
 class UltimasMovimentacoesPage extends StatelessWidget {
   final ApiService apiService;
-  const UltimasMovimentacoesPage({required this.apiService});
+  const UltimasMovimentacoesPage({Key? key, required this.apiService}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -447,7 +457,7 @@ class UltimasMovimentacoesPage extends StatelessWidget {
 
 class BaixoEstoquePage extends StatelessWidget {
   final ApiService apiService;
-  const BaixoEstoquePage({required this.apiService});
+  const BaixoEstoquePage({Key? key, required this.apiService}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -476,7 +486,7 @@ class BaixoEstoquePage extends StatelessWidget {
 
 class MovimentacoesTempoPage extends StatelessWidget {
   final ApiService apiService;
-  const MovimentacoesTempoPage({required this.apiService});
+  const MovimentacoesTempoPage({Key? key, required this.apiService}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -505,19 +515,20 @@ class MovimentacoesTempoPage extends StatelessWidget {
 
 class HistoricoMovimentacoesPage extends StatelessWidget {
   final ApiService apiService;
-  const HistoricoMovimentacoesPage({required this.apiService});
+  const HistoricoMovimentacoesPage({Key? key, required this.apiService}) : super(key: key);
   @override
   Widget build(BuildContext context) => const Scaffold(body: Center(child: Text("Aba de Histórico Geral")));
 }
 
 class ContarVendasPage extends StatelessWidget {
   final ApiService apiService;
-  const ContarVendasPage({required this.apiService});
+  const ContarVendasPage({Key? key, required this.apiService}) : super(key: key);
   @override
   Widget build(BuildContext context) => const Scaffold(body: Center(child: Text("Aba de Contagem Financeira")));
 }
 
 class MenuOpcoesPage extends StatelessWidget {
+  const MenuOpcoesPage({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) => const Scaffold(body: Center(child: Text("Aba de Menus Administrativos")));
 }
