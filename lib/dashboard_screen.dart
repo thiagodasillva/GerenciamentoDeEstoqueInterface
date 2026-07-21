@@ -1,4 +1,3 @@
-// lib/dashboard_screen.dart
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 import 'busca_screen.dart';
@@ -25,9 +24,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final List<Widget> _paginas = [
       DashboardPainel(onNavigate: _mudarAba, apiService: _apiService),
       ProdutosPage(apiService: _apiService),
-      HistoricoMovimentacoesPage(apiService: _apiService),
       ContarVendasPage(apiService: _apiService),
-      MenuOpcoesPage(),
+      const MenuOpcoesPage(),
     ];
 
     return Scaffold(
@@ -58,9 +56,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               children: [
                 _buildNavItem(0, Icons.home_outlined, 'HOME'),
                 _buildNavItem(1, Icons.inventory_2_outlined, 'PRODUTOS'),
-                _buildNavItem(2, Icons.history_outlined, 'HIST.'),
-                _buildNavItem(3, Icons.assignment_outlined, 'CONTAR'),
-                _buildNavItem(4, Icons.menu, 'MENU'),
+                _buildNavItem(2, Icons.assignment_outlined, 'CONTA'),
+                _buildNavItem(3, Icons.menu, 'MENU'),
               ],
             ),
           ),
@@ -106,6 +103,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 }
 
+// ==================== PAINEL PRINCIPAL (HOME) ====================
 class DashboardPainel extends StatelessWidget {
   final Function(int) onNavigate;
   final ApiService apiService;
@@ -392,6 +390,7 @@ class DashboardPainel extends StatelessWidget {
   }
 }
 
+// ==================== ABA PRODUTOS ====================
 class ProdutosPage extends StatelessWidget {
   final ApiService apiService;
   const ProdutosPage({Key? key, required this.apiService}) : super(key: key);
@@ -406,6 +405,8 @@ class ProdutosPage extends StatelessWidget {
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final produtos = snapshot.data!;
+          if (produtos.isEmpty) return const Center(child: Text("Nenhum produto cadastrado."));
+
           return ListView.builder(
             itemCount: produtos.length,
             padding: const EdgeInsets.all(16),
@@ -424,6 +425,200 @@ class ProdutosPage extends StatelessWidget {
     );
   }
 }
+
+// ==================== ABA CONTA / CONTAGEM ====================
+class ContarVendasPage extends StatelessWidget {
+  final ApiService apiService;
+  const ContarVendasPage({Key? key, required this.apiService}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: const Text("Gestão da Conta e Vendas", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: const Color(0xFF1E293B),
+      ),
+      body: FutureBuilder<List<dynamic>>(
+        future: apiService.obterResumoVendas(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final vendas = snapshot.data ?? [];
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.calculate_outlined, size: 48, color: Color(0xFF00A859)),
+                        const SizedBox(height: 12),
+                        const Text("Auditoria de Estoque", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Inicie uma nova contagem física para sincronizar as quantidades diretamente com o servidor.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00A859),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Sessão de contagem iniciada!')),
+                              );
+                            },
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text("Iniciar Nova Contagem", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text("Vendas Recentes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                const SizedBox(height: 10),
+                vendas.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Center(child: Text("Nenhuma venda registrada.")),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: vendas.length,
+                        itemBuilder: (context, i) {
+                          final v = vendas[i];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: const Icon(Icons.monetization_on_outlined, color: Color(0xFF7C3AED)),
+                              title: Text("Venda #${v['id'] ?? ''}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Text("Data: ${v['data'] ?? 'N/A'} - Vendedor: ${v['vendedor'] ?? 'Geral'}"),
+                              trailing: Text("R\$ ${(v['valor_total'] as num?)?.toStringAsFixed(2) ?? '0.00'}", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00A859))),
+                            ),
+                          );
+                        },
+                      ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ==================== ABA MENU ====================
+class MenuOpcoesPage extends StatelessWidget {
+  const MenuOpcoesPage({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: const Text("Menu e Ajustes", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: const Color(0xFF1E293B),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const UserAccountsDrawerHeader(
+            decoration: BoxDecoration(
+              color: Color(0xFF1E293B),
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: Color(0xFF00A859),
+              child: Text("A", style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+            accountName: Text("Administrador"),
+            accountEmail: Text("gestor@estoque.com"),
+          ),
+          const SizedBox(height: 16),
+          _buildMenuItem(
+            icon: Icons.person_outline,
+            title: "Perfil do Gestor",
+            onTap: () {},
+          ),
+          _buildMenuItem(
+            icon: Icons.dns_outlined,
+            title: "Servidor Spring Boot",
+            subtitle: "https://gerenciamentodeestoque-uysv.onrender.com",
+            onTap: () {},
+          ),
+          _buildMenuItem(
+            icon: Icons.notifications_none_outlined,
+            title: "Alertas e Notificações",
+            onTap: () {},
+          ),
+          _buildMenuItem(
+            icon: Icons.security_outlined,
+            title: "Permissões e Acessos",
+            onTap: () {},
+          ),
+          const Divider(height: 32),
+          _buildMenuItem(
+            icon: Icons.logout,
+            title: "Sair da Conta",
+            color: Colors.red,
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    Color color = const Color(0xFF1E293B),
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+        subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(fontSize: 12)) : null,
+        trailing: const Icon(Icons.chevron_right, size: 20),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+// ==================== SUB-PÁGINAS DO DASHBOARD ====================
 
 class UltimasMovimentacoesPage extends StatelessWidget {
   final ApiService apiService;
@@ -511,24 +706,4 @@ class MovimentacoesTempoPage extends StatelessWidget {
       ),
     );
   }
-}
-
-class HistoricoMovimentacoesPage extends StatelessWidget {
-  final ApiService apiService;
-  const HistoricoMovimentacoesPage({Key? key, required this.apiService}) : super(key: key);
-  @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text("Aba de Histórico Geral")));
-}
-
-class ContarVendasPage extends StatelessWidget {
-  final ApiService apiService;
-  const ContarVendasPage({Key? key, required this.apiService}) : super(key: key);
-  @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text("Aba de Contagem Financeira")));
-}
-
-class MenuOpcoesPage extends StatelessWidget {
-  const MenuOpcoesPage({Key? key}) : super(key: key);
-  @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text("Aba de Menus Administrativos")));
 }

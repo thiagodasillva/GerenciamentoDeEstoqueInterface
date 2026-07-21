@@ -5,7 +5,7 @@ class ApiService {
 
 // Endereço do serviço alocado no render
   final String baseUrl = 'https://gerenciamentodeestoque-uysv.onrender.com/api/busca';
-  final String metricsUrl = 'https://gerenciamentodeestoque-uysv.onrender.com/api'; 
+  final String metricsUrl = 'https://gerenciamentodeestoque-uysv.onrender.com/api/dashboard'; 
 
   Future<List<dynamic>> enviarTexto(String texto) async {
     final response = await http.post(
@@ -61,7 +61,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> obterDadosDashboard() async {
     try {
-      final response = await http.get(Uri.parse('$metricsUrl/dashboard/resumo'));
+      final response = await http.get(Uri.parse('$metricsUrl/resumo'));
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
@@ -91,5 +91,15 @@ class ApiService {
     return response.statusCode == 200 ? jsonDecode(response.body) : [];
   }
 
+    // Endpoint para relatório de vendas
+  Future<List<dynamic>> obterResumoVendas() async {
+  try {
+    
+    final response = await http.get(Uri.parse('$metricsUrl/vendas'));
+    return response.statusCode == 200 ? jsonDecode(response.body) : [];
+  } catch (_) {
+    return [];
+  }
+  }
 
 }
